@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CallM_BH - UK Business Lookup & Enrichment</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 600px;
+            width: 100%;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            position: relative;
+        }
+
+        .exit-button {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .exit-button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .logo {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+
+        h1 {
+            color: white;
+            font-size: 36px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 16px;
+            font-weight: 400;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .step-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 50%;
+            font-weight: 700;
+            margin-right: 12px;
+        }
+
+        .card-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1a202c;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+        }
+
+        .card-description {
+            color: #718096;
+            font-size: 14px;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+
+        .upload-area {
+            border: 2px dashed #cbd5e0;
+            border-radius: 12px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: #f7fafc;
+        }
+
+        .upload-area:hover {
+            border-color: #667eea;
+            background: #edf2f7;
+        }
+
+        .upload-area.dragover {
+            border-color: #667eea;
+            background: #e6f2ff;
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+
+        .upload-text {
+            color: #667eea;
+            font-weight: 600;
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+
+        .upload-hint {
+            color: #a0aec0;
+            font-size: 14px;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .file-info {
+            display: none;
+            background: #e6f2ff;
+            border: 1px solid #667eea;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-top: 12px;
+        }
+
+        .file-info.show {
+            display: block;
+        }
+
+        .file-name {
+            color: #1a202c;
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .file-details {
+            color: #718096;
+            font-size: 13px;
+        }
+
+        .button {
+            width: 100%;
+            padding: 16px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .button-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .button-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .button-primary:disabled {
+            background: #cbd5e0;
+            cursor: not-allowed;
+        }
+
+        .button-danger {
+            background: #f56565;
+            color: white;
+        }
+
+        .button-danger:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(245, 101, 101, 0.4);
+        }
+
+        .progress-container {
+            display: none;
+            margin-top: 20px;
+        }
+
+        .progress-container.show {
+            display: block;
+        }
+
+        .phase-indicator {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .phase {
+            flex: 1;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 14px;
+            font-weight: 600;
+            background: #f7fafc;
+            color: #a0aec0;
+            border: 2px solid transparent;
+        }
+
+        .phase.active {
+            background: #e6f2ff;
+            color: #667eea;
+            border-color: #667eea;
+        }
+
+        .phase.completed {
+            background: #c6f6d5;
+            color: #38a169;
+            border-color: #38a169;
+        }
+
+        .progress-bar-container {
+            background: #e2e8f0;
+            border-radius: 8px;
+            height: 12px;
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        .progress-text {
+            text-align: center;
+            color: #4a5568;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .status-message {
+            text-align: center;
+            color: #718096;
+            font-size: 13px;
+            font-style: italic;
+        }
+
+        .results {
+            display: none;
+        }
+
+        .results.show {
+            display: block;
+        }
+
+        .result-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            background: #f7fafc;
+            border-radius: 8px;
+            margin-bottom: 12px;
+        }
+
+        .result-label {
+            font-weight: 600;
+            color: #1a202c;
+            font-size: 14px;
+        }
+
+        .download-link {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .download-link:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .error-message {
+            background: #fed7d7;
+            border: 1px solid #fc8181;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-top: 12px;
+            color: #c53030;
+            font-size: 14px;
+            display: none;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <button class="exit-button" onclick="exitApp()">✕ Exit CallM_BH</button>
+            <div class="logo">🎯</div>
+            <h1>CallM_BH</h1>
+            <p class="subtitle">UK Business Lookup & Contact Enrichment</p>
+        </div>
+
+        <!-- Step 1: Upload -->
+        <div class="card">
+            <h2 class="card-title">
+                <span class="step-number">1</span>
+                Upload Input CSV
+            </h2>
+            <p class="card-description">
+                Upload your input file with UK business addresses and postcodes.
+                The CSV should have columns: <strong>ADDRESS</strong> and <strong>POSTCODE</strong>
+            </p>
+
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">📂</div>
+                <div class="upload-text">Click to Upload or Drag & Drop</div>
+                <div class="upload-hint">Accepts CSV files</div>
+            </div>
+
+            <input type="file" id="fileInput" accept=".csv">
+
+            <div class="file-info" id="fileInfo">
+                <div class="file-name" id="fileName"></div>
+                <div class="file-details" id="fileDetails"></div>
+            </div>
+
+            <div class="error-message" id="uploadError"></div>
+        </div>
+
+        <!-- Step 2: Run Job -->
+        <div class="card">
+            <h2 class="card-title">
+                <span class="step-number">2</span>
+                Run Job
+            </h2>
+            <p class="card-description">
+                Start the scraping and enrichment process. This will run two phases:
+                <br><strong>Phase 1:</strong> Find company information on Companies House
+                <br><strong>Phase 2:</strong> Find directors/officers and LinkedIn profiles
+            </p>
+
+            <button class="button button-primary" id="startButton" disabled onclick="startJob()">
+                <span class="spinner hidden" id="startSpinner"></span>
+                <span id="startButtonText">🚀 Start Job</span>
+            </button>
+
+            <button class="button button-danger hidden" id="stopButton" onclick="stopJob()">
+                ⏹ Stop Job
+            </button>
+
+            <div class="progress-container" id="progressContainer">
+                <div class="phase-indicator">
+                    <div class="phase" id="phase1Indicator">Phase 1: Discovery</div>
+                    <div class="phase" id="phase2Indicator">Phase 2: Contacts</div>
+                </div>
+
+                <div class="progress-text" id="progressText">Starting...</div>
+                <div class="progress-bar-container">
+                    <div class="progress-bar" id="progressBar"></div>
+                </div>
+                <div class="status-message" id="statusMessage"></div>
+            </div>
+
+            <div class="results" id="results">
+                <h3 style="margin-bottom: 16px; color: #1a202c; font-size: 18px;">📥 Download Results</h3>
+
+                <div class="result-item">
+                    <span class="result-label">Phase 1: Company Information</span>
+                    <a href="#" class="download-link" id="downloadPhase1" download>Download CSV</a>
+                </div>
+
+                <div class="result-item">
+                    <span class="result-label">Phase 2: With Contacts</span>
+                    <a href="#" class="download-link" id="downloadPhase2" download>Download CSV</a>
+                </div>
+            </div>
+
+            <div class="error-message" id="jobError"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentJobId = null;
+        let uploadedFilePath = null;
+        let statusCheckInterval = null;
+
+        // Upload area interactions
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const fileDetails = document.getElementById('fileDetails');
+        const uploadError = document.getElementById('uploadError');
+        const startButton = document.getElementById('startButton');
+
+        uploadArea.addEventListener('click', () => fileInput.click());
+
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFileUpload(files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFileUpload(e.target.files[0]);
+            }
+        });
+
+        async function handleFileUpload(file) {
+            if (!file.name.endsWith('.csv')) {
+                showError(uploadError, 'Please upload a CSV file');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Upload failed');
+                }
+
+                const data = await response.json();
+
+                // Show file info
+                fileName.textContent = `📄 ${data.filename}`;
+                fileDetails.textContent = `${data.rows} rows • ${formatFileSize(data.size)}`;
+                fileInfo.classList.add('show');
+                uploadError.classList.remove('show');
+
+                // Enable start button
+                uploadedFilePath = data.path;
+                startButton.disabled = false;
+
+            } catch (error) {
+                showError(uploadError, error.message);
+                fileInfo.classList.remove('show');
+                startButton.disabled = true;
+            }
+        }
+
+        async function startJob() {
+            if (!uploadedFilePath) {
+                showError(document.getElementById('jobError'), 'Please upload a file first');
+                return;
+            }
+
+            try {
+                // Reset UI
+                document.getElementById('progressContainer').classList.add('show');
+                document.getElementById('results').classList.remove('show');
+                document.getElementById('jobError').classList.remove('show');
+                document.getElementById('startButton').classList.add('hidden');
+                document.getElementById('stopButton').classList.remove('hidden');
+
+                resetPhaseIndicators();
+
+                // Start job
+                const response = await fetch(`/api/jobs/start?file_path=${encodeURIComponent(uploadedFilePath)}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        skip_phase1: false,
+                        skip_phase2: false
+                    })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Failed to start job');
+                }
+
+                const data = await response.json();
+                currentJobId = data.job_id;
+
+                // Start polling for status
+                statusCheckInterval = setInterval(checkJobStatus, 2000);
+
+            } catch (error) {
+                showError(document.getElementById('jobError'), error.message);
+                resetUI();
+            }
+        }
+
+        async function stopJob() {
+            if (!currentJobId) return;
+
+            try {
+                const response = await fetch(`/api/jobs/${currentJobId}/stop`, {
+                    method: 'POST'
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to stop job');
+                }
+
+                document.getElementById('statusMessage').textContent = 'Stopping job...';
+
+            } catch (error) {
+                showError(document.getElementById('jobError'), error.message);
+            }
+        }
+
+        async function checkJobStatus() {
+            if (!currentJobId) return;
+
+            try {
+                const response = await fetch(`/api/jobs/${currentJobId}/status`);
+                if (!response.ok) throw new Error('Failed to get status');
+
+                const job = await response.json();
+
+                // Update progress
+                updateProgress(job);
+
+                // Update phase indicators
+                updatePhaseIndicators(job.phase, job.status);
+
+                // Check if job is done
+                if (job.status === 'completed') {
+                    clearInterval(statusCheckInterval);
+                    showResults(job);
+                } else if (job.status === 'failed' || job.status === 'stopped') {
+                    clearInterval(statusCheckInterval);
+                    showError(document.getElementById('jobError'), job.error || job.message);
+                    resetUI();
+                }
+
+            } catch (error) {
+                console.error('Status check failed:', error);
+            }
+        }
+
+        function updateProgress(job) {
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+            const statusMessage = document.getElementById('statusMessage');
+
+            const percentage = Math.round(job.progress * 100);
+            progressBar.style.width = `${percentage}%`;
+            progressText.textContent = `Progress: ${percentage}%`;
+            statusMessage.textContent = job.message;
+        }
+
+        function updatePhaseIndicators(currentPhase, status) {
+            const phase1 = document.getElementById('phase1Indicator');
+            const phase2 = document.getElementById('phase2Indicator');
+
+            // Reset
+            phase1.classList.remove('active', 'completed');
+            phase2.classList.remove('active', 'completed');
+
+            if (currentPhase === 'phase1') {
+                phase1.classList.add('active');
+            } else if (currentPhase === 'phase2') {
+                phase1.classList.add('completed');
+                phase2.classList.add('active');
+            } else if (currentPhase === 'completed') {
+                phase1.classList.add('completed');
+                phase2.classList.add('completed');
+            }
+        }
+
+        function resetPhaseIndicators() {
+            const phase1 = document.getElementById('phase1Indicator');
+            const phase2 = document.getElementById('phase2Indicator');
+            phase1.classList.remove('active', 'completed');
+            phase2.classList.remove('active', 'completed');
+        }
+
+        function showResults(job) {
+            document.getElementById('results').classList.add('show');
+            document.getElementById('stopButton').classList.add('hidden');
+            document.getElementById('startButton').classList.remove('hidden');
+            document.getElementById('startButton').disabled = false;
+
+            // Set download links
+            if (job.output_file_phase1) {
+                document.getElementById('downloadPhase1').href = `/api/jobs/${job.job_id}/download/phase1`;
+            }
+            if (job.output_file_phase2) {
+                document.getElementById('downloadPhase2').href = `/api/jobs/${job.job_id}/download/phase2`;
+            }
+        }
+
+        function resetUI() {
+            document.getElementById('stopButton').classList.add('hidden');
+            document.getElementById('startButton').classList.remove('hidden');
+            document.getElementById('startButton').disabled = false;
+        }
+
+        function showError(element, message) {
+            element.textContent = message;
+            element.classList.add('show');
+            setTimeout(() => element.classList.remove('show'), 5000);
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
+        async function exitApp() {
+            if (confirm('Are you sure you want to exit CallM_BH? This will stop the server.')) {
+                try {
+                    await fetch('/api/shutdown', { method: 'POST' });
+                    document.body.innerHTML = '<div style="display: flex; justify-content: center; align-items: center; height: 100vh; color: white; font-size: 24px; text-align: center;"><div><div style="font-size: 64px; margin-bottom: 20px;">👋</div><div>CallM_BH has been shut down.<br>You can close this window.</div></div></div>';
+                } catch (error) {
+                    alert('Failed to shutdown server. Please close the terminal window manually.');
+                }
+            }
+        }
+    </script>
+</body>
+</html>

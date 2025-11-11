@@ -1,0 +1,33 @@
+#!/bin/bash
+# CallM_BH Mac Launcher
+
+# Get the directory where the .app bundle is located
+APP_DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
+cd "$APP_DIR"
+
+# Check for virtual environment
+if [ ! -d "venv" ] && [ ! -d ".venv" ]; then
+    osascript -e 'display dialog "Virtual environment not found!\n\nPlease run SETUP.sh first." buttons {"OK"} default button "OK" with icon stop with title "CallM_BH"'
+    exit 1
+fi
+
+# Check for .env file
+if [ ! -f ".env" ]; then
+    osascript -e 'display dialog ".env file not found!\n\nPlease run SETUP.sh to configure your Google API Key." buttons {"OK"} default button "OK" with icon stop with title "CallM_BH"'
+    exit 1
+fi
+
+# Use venv or .venv
+if [ -d "venv" ]; then
+    VENV_DIR="venv"
+else
+    VENV_DIR=".venv"
+fi
+
+# Open Terminal and run the launcher
+osascript <<EOF
+tell application "Terminal"
+    activate
+    do script "cd '$APP_DIR' && source $VENV_DIR/bin/activate && python3 launcher.py"
+end tell
+EOF
