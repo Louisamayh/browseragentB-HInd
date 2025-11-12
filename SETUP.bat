@@ -1,4 +1,5 @@
 @echo off
+setlocal enabledelayedexpansion
 REM CallM_BH Setup Script for Windows
 REM Run this once to install CallM_BH
 
