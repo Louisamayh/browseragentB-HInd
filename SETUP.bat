@@ -10,18 +10,24 @@ echo.
 
 REM Check Python
 echo Checking Python...
-python --version >nul 2>&1
+py --version >nul 2>&1
 if errorlevel 1 (
-    echo ERROR: Python is not installed!
-    echo.
-    echo Please install Python 3.11 or higher from python.org
-    echo Make sure to check "Add Python to PATH" during installation
-    echo.
-    pause
-    exit /b 1
+    python --version >nul 2>&1
+    if errorlevel 1 (
+        echo ERROR: Python is not installed!
+        echo.
+        echo Please install Python 3.11 or higher from python.org
+        echo Make sure to check "Add Python to PATH" during installation
+        echo.
+        pause
+        exit /b 1
+    )
+    set PYTHON_CMD=python
+) else (
+    set PYTHON_CMD=py
 )
 
-python --version
+%PYTHON_CMD% --version
 echo Python found
 echo.
 
@@ -32,14 +38,14 @@ if exist "venv\" (
     rmdir /s /q venv
 )
 
-python -m venv venv
+%PYTHON_CMD% -m venv venv
 echo Virtual environment created
 echo.
 
 REM Activate and install dependencies
 echo Installing dependencies...
 call venv\Scripts\activate.bat
-python -m pip install --upgrade pip
+%PYTHON_CMD% -m pip install --upgrade pip
 pip install -r requirements.txt
 echo Dependencies installed
 echo.
