@@ -84,20 +84,20 @@ Otherwise (or if the above fails):
   1) Go to https://www.google.com
   2) Search exactly: "{company_name} site:gov.uk"
   3) Click the result whose title and snippet best match the company name and location.
+  4) On the Companies House page, open the “People” section.
 
 STEP 2 — People extraction
-1) On the Companies House page, open the “People” section.
-2) Identify ALL CURRENT (non-resigned) officers, up to {max_contacts} total.
-3) Prioritise senior roles: Managing Director, Director, Owner, CFO, Finance Director, Head of Finance, COO, Operations Director.
-4) For each person, capture:
+1)Identify ALL CURRENT (non-resigned) officers, up to {max_contacts} total.
+2) Prioritise senior roles: Managing Director, Director, Owner, CFO, Finance Director, Head of Finance, COO, Operations Director.
+3) For each person, capture:
    - contact_name
    - contact_title
 
-STEP 3 — LinkedIn refinement
+STEP 3 — Find each contact's LinkedIn
 For each person:
   - Search Google: site:linkedin.com/in "<PERSON_NAME>" "{company_name}"
   - Confirm they’re tied to this company before saving the LinkedIn URL.
-  - Only set contact_email if a personal, public email appears.
+  
 
 STEP 4 — Source & confidence
 - For each person, include source_url (gov.uk or LinkedIn page used).
@@ -110,7 +110,6 @@ RETURN FORMAT (JSON object):
       "contact_name": string,
       "contact_title": string,
       "contact_linkedin": string | null,
-      "contact_email": string | null,
       "source_url": string | null,
       "confidence": number | null,
       "notes": string | null
@@ -124,7 +123,7 @@ Only include as many contacts as you found (1..{max_contacts}). Do NOT include r
 async def run_for_company(llm: ChatGoogle, company_name: str, govuk_url: str | None) -> list[dict]:
     """
     Returns a list of contact dicts with keys:
-    contact_name, contact_title, contact_linkedin, contact_email, source_url, confidence, notes
+    contact_name, contact_title, contact_linkedin, source_url, confidence, notes
     """
     agent = Agent(
         task=build_task(company_name, govuk_url, TARGET_CONTACTS),
@@ -169,7 +168,6 @@ async def run_for_company(llm: ChatGoogle, company_name: str, govuk_url: str | N
                     "contact_name": name,
                     "contact_title": title,
                     "contact_linkedin": (item.get("contact_linkedin") or "").strip() or "",
-                    "contact_email": (item.get("contact_email") or "").strip().lower() or "",
                     "source_url": (item.get("source_url") or "").strip() or "",
                     "confidence": item.get("confidence", None),
                     "notes": (item.get("notes") or "").strip() or "",
@@ -234,6 +232,11 @@ async def main():
     print(f"👤 Phase 2: up to {TARGET_CONTACTS} contacts per company from {INPUT_CSV} ...")
 
     for i, row in enumerate(data_rows, start=1):
+        # Check for stop request
+        if os.getenv("STOP_REQUESTED_FLAG", "0") == "1":
+            print(f"⏹ Stop requested. Saving partial results...")
+            break
+
         row = row + [""] * (len(output_header) - len(row))
         company_name = (row[idx_name] or "").strip()
         govuk_url = (row[idx_govuk] or "").strip() or None
@@ -284,8 +287,7 @@ async def main():
             row[contact_cols[slot]["title"]] = row[contact_cols[slot]["title"]] or contact["contact_title"]
             if contact.get("contact_linkedin"):
                 row[contact_cols[slot]["linkedin"]] = row[contact_cols[slot]["linkedin"]] or contact["contact_linkedin"]
-            if contact.get("contact_email"):
-                row[contact_cols[slot]["email"]] = row[contact_cols[slot]["email"]] or contact["contact_email"]
+            # Note: contact_email is no longer collected
 
             # meta (set once if empty)
             if contact.get("source_url") and not row[idx_src]:

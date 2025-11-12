@@ -178,6 +178,11 @@ async def main():
     print(f"🔎 Phase 1: processing {len(data_rows)} row(s) from {INPUT_CSV} ...")
 
     for i, row in enumerate(data_rows, start=1):
+        # Check for stop request
+        if os.getenv("STOP_REQUESTED_FLAG", "0") == "1":
+            print(f"⏹ Stop requested. Saving partial results...")
+            break
+
         row = row + [""] * (len(output_header) - len(row))
         address = row[idx_address].strip() if len(row) > idx_address else ""
         postcode = row[idx_pc].strip() if len(row) > idx_pc else ""

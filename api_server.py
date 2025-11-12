@@ -10,7 +10,9 @@ import asyncio
 import uuid
 import csv
 import json
-from datetime import datetime
+import shutil
+import time
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional
 from dataclasses import dataclass, asdict
@@ -91,9 +93,67 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Startup event - start periodic cleanup
+@app.on_event("startup")
+async def startup_event():
+    """Start background tasks on server startup"""
+    asyncio.create_task(periodic_cleanup())
+
 # ============================================================================
 # Helper Functions
 # ============================================================================
+
+def cleanup_old_browser_data():
+    """
+    Clean up old browser-use temp directories and screenshots older than 24 hours.
+    Runs in background every 24 hours.
+    """
+    try:
+        print("🧹 Cleaning up old browser data...")
+        cleaned_count = 0
+
+        # Clean up /tmp/browser-use-* directories older than 24 hours
+        import tempfile
+        tmp_dir = Path(tempfile.gettempdir())
+
+        cutoff_time = time.time() - (24 * 60 * 60)  # 24 hours ago
+
+        for item in tmp_dir.glob("browser-use-*"):
+            try:
+                if item.is_dir():
+                    # Check if directory is older than 24 hours
+                    if item.stat().st_mtime < cutoff_time:
+                        shutil.rmtree(item, ignore_errors=True)
+                        cleaned_count += 1
+            except Exception as e:
+                print(f"   ⚠️ Could not remove {item}: {e}")
+
+        # Clean up Playwright temp files if they exist
+        for pattern in ["playwright-*", "pw-*"]:
+            for item in tmp_dir.glob(pattern):
+                try:
+                    if item.stat().st_mtime < cutoff_time:
+                        if item.is_dir():
+                            shutil.rmtree(item, ignore_errors=True)
+                        else:
+                            item.unlink(missing_ok=True)
+                        cleaned_count += 1
+                except Exception:
+                    pass
+
+        if cleaned_count > 0:
+            print(f"✅ Cleaned up {cleaned_count} old browser temp items")
+        else:
+            print("✅ No old browser data to clean")
+
+    except Exception as e:
+        print(f"⚠️ Cleanup error: {e}")
+
+async def periodic_cleanup():
+    """Run cleanup every 24 hours"""
+    while True:
+        await asyncio.sleep(24 * 60 * 60)  # Wait 24 hours
+        cleanup_old_browser_data()
 
 def get_row_count(file_path: str) -> int:
     """Count total rows in CSV file (excluding header)"""
@@ -120,11 +180,27 @@ async def run_phase1(job_id: str, input_file: str):
         os.environ["OUTPUT_CSV"] = output_file
         os.environ["PARTIAL_CSV"] = str((OUTPUT_DIR / f"{job_id}_phase1_partial.csv").absolute())
 
+        # Set stop flag environment variable so phases can check it
+        os.environ["STOP_REQUESTED_FLAG"] = "0"
+
         # Import phase1 module AFTER setting environment variables
         from phase1_discovery import main as phase1_main
 
-        # Run phase 1
-        await phase1_main()
+        # Run phase 1 in a task so we can check stop_requested periodically
+        task = asyncio.create_task(phase1_main())
+
+        # Poll for completion or stop request
+        while not task.done():
+            if stop_requested:
+                os.environ["STOP_REQUESTED_FLAG"] = "1"
+                job.status = "stopped"
+                job.message = "Job stopped by user during Phase 1"
+                # Note: The agent will complete its current step but won't start new ones
+                await task  # Wait for graceful completion
+                return False
+            await asyncio.sleep(0.5)
+
+        await task  # Get result or exception
 
         if stop_requested:
             job.status = "stopped"
@@ -140,6 +216,8 @@ async def run_phase1(job_id: str, input_file: str):
         job.error = str(e)
         job.message = f"Phase 1 failed: {str(e)}"
         return False
+    finally:
+        os.environ["STOP_REQUESTED_FLAG"] = "0"
 
 async def run_phase2(job_id: str):
     """Run Phase 2: Contact Enrichment"""
@@ -157,16 +235,32 @@ async def run_phase2(job_id: str):
             raise Exception("Phase 1 output not found. Run Phase 1 first.")
 
         # Set environment variables for phase 2
-        os.environ["INPUT_CSV"] = job.output_file_phase1
+        os.environ["INPUT_CSV_PHASE2"] = job.output_file_phase1
         output_file = str((OUTPUT_DIR / f"{job_id}_phase2_output.csv").absolute())
-        os.environ["OUTPUT_CSV"] = output_file
+        os.environ["OUTPUT_CSV_PHASE2"] = output_file
         os.environ["PARTIAL_CSV_PHASE2"] = str((OUTPUT_DIR / f"{job_id}_phase2_partial.csv").absolute())
+
+        # Set stop flag environment variable so phases can check it
+        os.environ["STOP_REQUESTED_FLAG"] = "0"
 
         # Import phase2 module AFTER setting environment variables
         from phase2_contacts import main as phase2_main
 
-        # Run phase 2
-        await phase2_main()
+        # Run phase 2 in a task so we can check stop_requested periodically
+        task = asyncio.create_task(phase2_main())
+
+        # Poll for completion or stop request
+        while not task.done():
+            if stop_requested:
+                os.environ["STOP_REQUESTED_FLAG"] = "1"
+                job.status = "stopped"
+                job.message = "Job stopped by user during Phase 2"
+                # Note: The agent will complete its current step but won't start new ones
+                await task  # Wait for graceful completion
+                return False
+            await asyncio.sleep(0.5)
+
+        await task  # Get result or exception
 
         if stop_requested:
             job.status = "stopped"
@@ -182,12 +276,15 @@ async def run_phase2(job_id: str):
         job.error = str(e)
         job.message = f"Phase 2 failed: {str(e)}"
         return False
+    finally:
+        os.environ["STOP_REQUESTED_FLAG"] = "0"
 
 async def run_job(job_id: str, skip_phase1: bool = False, skip_phase2: bool = False):
     """Run the complete job (Phase 1 + Phase 2)"""
     global stop_requested, current_job_id
 
     stop_requested = False
+    os.environ["STOP_REQUESTED_FLAG"] = "0"
     current_job_id = job_id
     job = jobs[job_id]
 
@@ -403,10 +500,29 @@ async def list_jobs():
     return {"jobs": [asdict(job) for job in jobs.values()]}
 
 @app.post("/api/shutdown")
-async def shutdown():
+async def shutdown(background_tasks: BackgroundTasks):
     """Shutdown the server"""
+    global stop_requested, current_job_id
+
     print("\n🛑 Shutdown requested via API")
-    os._exit(0)
+
+    # Stop any running jobs first
+    if current_job_id:
+        print("🛑 Stopping running job...")
+        stop_requested = True
+        os.environ["STOP_REQUESTED_FLAG"] = "1"
+
+    # Schedule shutdown in background so we can return response first
+    def do_shutdown():
+        import time
+        time.sleep(1)  # Give time for response to be sent
+        print("🛑 Shutting down server...")
+        import sys
+        sys.exit(0)
+
+    background_tasks.add_task(do_shutdown)
+
+    return {"message": "Server shutting down..."}
 
 # ============================================================================
 # Static Files & Root
@@ -442,6 +558,7 @@ def main():
     print(f"📁 Upload directory: {UPLOAD_DIR.absolute()}")
     print(f"📁 Output directory: {OUTPUT_DIR.absolute()}")
     print(f"🌐 Server starting at: http://localhost:8000")
+    print(f"🧹 Auto-cleanup: Enabled (every 24 hours)")
     print("=" * 60)
 
     # Check for .env file
@@ -459,6 +576,9 @@ def main():
         print("   Web interface will not be available")
         print("   API endpoints will still work at /api/*")
         print()
+
+    # Run initial cleanup on startup
+    cleanup_old_browser_data()
 
     try:
         uvicorn.run(
