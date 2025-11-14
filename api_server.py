@@ -23,6 +23,10 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
+from dotenv import load_dotenv
+
+# Load .env file FIRST
+load_dotenv()
 
 # Set environment variables before importing phase modules
 os.environ.setdefault("GOOGLE_API_KEY", os.getenv("GOOGLE_API_KEY", ""))
